@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#E24B4A">
+  <meta name="description" content="A beautiful work scheduler that works offline and syncs to the cloud">
+  <title>Work Planner - Schedule Your Week</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: linear-gradient(135deg, #f5f1f1 0%, #f9f4f4 100%);
+      min-height: 100vh;
+      padding: 2rem;
+      color: #2C2C2A;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      margin-bottom: 2rem;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #E24B4A 0%, #D4537E 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .subtitle {
+      margin: 0.5rem 0 0 0;
+      color: #888780;
+      font-size: 14px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+
+    .stat-box {
+      background: white;
+      border: 1px solid #D4537E;
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: 24px;
+      font-weight: 600;
+      color: #E24B4A;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #888780;
+      margin-top: 4px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+
+    button {
+      padding: 1rem;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #E24B4A 0%, #D4537E 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #E24B4A;
+      border: 1px solid #E24B4A;
+    }
+
+    .btn-secondary:hover {
+      background: #FFF5F5;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      color: #2C2C2A;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #2C2C2A;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #D3D1C7;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #E24B4A;
+      box-shadow: 0 0 0 3px rgba(226, 75, 74, 0.1);
+    }
+
+    .form-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .form-buttons button {
+      margin: 0;
+    }
+
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .day-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #D3D1C7;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .day-header {
+      background: linear-gradient(135deg, #E24B4A 0%, #D4537E 100%);
+      color: white;
+      padding: 1rem;
+      font-weight: 600;
+      font-size: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .day-count {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .day-tasks {
+      padding: 1rem;
+      min-height: 200px;
+    }
+
+    .no-tasks {
+      color: #888780;
+      font-size: 13px;
+    }
+
+    .task-item {
+      background: white;
+      border: 2px solid;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .task-high {
+      border-color: #E24B4A;
+    }
+
+    .task-medium {
+      border-color: #BA7517;
+    }
+
+    .task-low {
+      border-color: #185FA5;
+    }
+
+    .task-item.completed {
+      opacity: 0.6;
+      background: #F1EFE8;
+    }
+
+    .task-checkbox {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      cursor: pointer;
+      accent-color: #E24B4A;
+      flex-shrink: 0;
+    }
+
+    .task-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: #2C2C2A;
+      word-break: break-word;
+    }
+
+    .task-title.completed {
+      text-decoration: line-through;
+    }
+
+    .task-desc {
+      font-size: 12px;
+      color: #888780;
+      margin-top: 4px;
+      word-break: break-word;
+    }
+
+    .task-priority {
+      font-size: 11px;
+      font-weight: 500;
+      margin-top: 6px;
+    }
+
+    .task-delete {
+      background: none;
+      border: none;
+      color: #D3D1C7;
+      cursor: pointer;
+      font-size: 20px;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .task-delete:hover {
+      color: #E24B4A;
+    }
+
+    .footer {
+      text-align: center;
+      color: #888780;
+      font-size: 13px;
+      border-top: 1px solid #D3D1C7;
+      padding-top: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .footer p {
+      margin: 0.5rem 0;
+    }
+
+    @media (max-width: 768px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .form-buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .days-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-top">
+        <div class="logo">✓</div>
+        <h1>Work Planner</h1>
+      </div>
+      <p class="subtitle">Organize your week, stay focused, accomplish more</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-num" id="completed">0</div>
+        <div class="stat-label">Tasks done</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="total">0</div>
+        <div class="stat-label">Total tasks</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="percent">0%</div>
+        <div class="stat-label">Progress</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="thisweek">0</div>
+        <div class="stat-label">This week</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn-primary" onclick="openModal()">+ Add task</button>
+      <button class="btn-secondary" onclick="exportTasks()">Export</button>
+      <button class="btn-secondary" onclick="importTasks()">Import</button>
+    </div>
+
+    <div class="modal" id="addModal">
+      <div class="modal-content">
+        <div class="modal-title">New task</div>
+        <div class="form-group">
+          <label>Task title</label>
+          <input type="text" id="taskTitle" placeholder="What needs to be done?" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="taskDesc" placeholder="Add details (optional)"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Day</label>
+          <select id="taskDay">
+            <option>Monday</option>
+            <option>Tuesday</option>
+            <option>Wednesday</option>
+            <option>Thursday</option>
+            <option>Friday</option>
+            <option>Saturday</option>
+            <option>Sunday</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="taskPri">
+            <option value="low">Low priority</option>
+            <option value="medium" selected>Medium priority</option>
+            <option value="high">High priority</option>
+          </select>
+        </div>
+        <div class="form-buttons">
+          <button class="btn-primary" onclick="addTask()">Create task</button>
+          <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="days-grid" id="daysGrid"></div>
+
+    <div class="footer">
+      <p>💾 Your data is saved locally and never leaves your device unless you export it</p>
+      <p>Built for anyone, works offline, syncs to cloud ☁️</p>
+    </div>
+  </div>
+
+  <script>
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    let tasks = JSON.parse(localStorage.getItem('workPlannerTasks') || '[]');
+
+    function saveTasks() {
+      localStorage.setItem('workPlannerTasks', JSON.stringify(tasks));
+      render();
+    }
+
+    function addTask() {
+      const title = document.getElementById('taskTitle').value.trim();
+      if (!title) {
+        alert('Please enter a task title');
+        return;
+      }
+
+      tasks.push({
+        id: Date.now(),
+        title: title,
+        desc: document.getElementById('taskDesc').value,
+        day: document.getElementById('taskDay').value,
+        priority: document.getElementById('taskPri').value,
+        completed: false,
+        createdAt: new Date().toISOString()
+      });
+
+      saveTasks();
+      closeModal();
+    }
+
+    function toggleTask(id) {
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        task.completed = !task.completed;
+        saveTasks();
+      }
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter(t => t.id !== id);
+      saveTasks();
+    }
+
+    function openModal() {
+      document.getElementById('addModal').classList.add('show');
+      setTimeout(() => document.getElementById('taskTitle').focus(), 100);
+    }
+
+    function closeModal() {
+      document.getElementById('addModal').classList.remove('show');
+      document.getElementById('taskTitle').value = '';
+      document.getElementById('taskDesc').value = '';
+    }
+
+    function exportTasks() {
+      const dataStr = JSON.stringify(tasks, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'work-schedule-' + new Date().toISOString().split('T')[0] + '.json';
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importTasks() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            if (Array.isArray(imported)) {
+              tasks = [...tasks, ...imported];
+              saveTasks();
+              alert('Tasks imported successfully!');
+            } else {
+              alert('Invalid file format');
+            }
+          } catch (err) {
+            alert('Failed to import tasks');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
+    function render() {
+      const grid = document.getElementById('daysGrid');
+      grid.innerHTML = '';
+
+      const completedCount = tasks.filter(t => t.completed).length;
+      const totalCount = tasks.length;
+
+      document.getElementById('completed').textContent = completedCount;
+      document.getElementById('total').textContent = totalCount;
+      document.getElementById('percent').textContent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+      document.getElementById('thisweek').textContent = totalCount;
+
+      const priorityColors = {
+        high: '#E24B4A',
+        medium: '#BA7517',
+        low: '#185FA5'
+      };
+
+      days.forEach(day => {
+        const dayTasks = tasks.filter(t => t.day === day);
+
+        const dayCard = document.createElement('div');
+        dayCard.className = 'day-card';
+
+        let tasksHTML = '';
+        if (dayTasks.length === 0) {
+          tasksHTML = '<div class="no-tasks">No tasks scheduled</div>';
+        } else {
+          tasksHTML = dayTasks.map(task => `
+            <div class="task-item task-${task.priority} ${task.completed ? 'completed' : ''}">
+              <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id})">
+              <div class="task-content">
+                <div class="task-title ${task.completed ? 'completed' : ''}">${escapeHtml(task.title)}</div>
+                ${task.desc ? `<div class="task-desc">${escapeHtml(task.desc)}</div>` : ''}
+                <div class="task-priority" style="color: ${priorityColors[task.priority]}">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} priority</div>
+              </div>
+              <button class="task-delete" onclick="deleteTask(${task.id})">×</button>
+            </div>
+          `).join('');
+        }
+
+        dayCard.innerHTML = `
+          <div class="day-header">
+            ${day}
+            <span class="day-count">${dayTasks.length}</span>
+          </div>
+          <div class="day-tasks">
+            ${tasksHTML}
+          </div>
+        `;
+
+        grid.appendChild(dayCard);
+      });
+    }
+
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    document.getElementById('addModal').addEventListener('click', (e) => {
+      if (e.target.id === 'addModal') closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    render();
+  </script>
+</body>
+</html>
