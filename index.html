@@ -625,11 +625,79 @@ function closeModal() {
 // ─────────────────────────────
 
 function exportTasks() {
-  const dataStr = JSON.stringify(tasks, null, 2);
+  if (tasks.length === 0) {
+    alert("No tasks to export.");
+    return;
+  }
+
+  const completedCount = tasks.filter(
+    task => task.completed
+  ).length;
+
+  const totalCount = tasks.length;
+
+  const remainingCount =
+    totalCount - completedCount;
+
+  const progress =
+    totalCount > 0
+      ? Math.round((completedCount / totalCount) * 100)
+      : 0;
+
+  let exportText =
+`WORKPLANNER TASK REPORT
+=======================
+
+Summary
+-------
+Total Tasks: ${totalCount}
+Completed: ${completedCount}
+Remaining: ${remainingCount}
+Progress: ${progress}%
+
+Tasks
+-----
+`;
+
+  days.forEach(day => {
+    const dayTasks = tasks.filter(
+      task => task.day === day
+    );
+
+    if (dayTasks.length === 0) {
+      return;
+    }
+
+    exportText += `\n${day}\n`;
+
+    dayTasks.forEach(task => {
+      const status = task.completed
+        ? "Completed"
+        : "Pending";
+
+      const priority =
+        task.priority.charAt(0).toUpperCase() +
+        task.priority.slice(1);
+
+      exportText +=
+`- ${task.title}
+  Priority: ${priority}
+  Status: ${status}
+`;
+
+      if (task.desc) {
+        exportText +=
+`  Description: ${task.desc}
+`;
+      }
+
+      exportText += "\n";
+    });
+  });
 
   const dataBlob = new Blob(
-    [dataStr],
-    { type: "application/json" }
+    [exportText],
+    { type: "text/plain" }
   );
 
   const url = URL.createObjectURL(dataBlob);
@@ -637,12 +705,15 @@ function exportTasks() {
   const link = document.createElement("a");
 
   link.href = url;
-  link.download =
-    "work-schedule-" +
-    new Date().toISOString().split("T")[0] +
-    ".json";
 
+  link.download =
+    "workplanner-report-" +
+    new Date().toISOString().split("T")[0] +
+    ".txt";
+
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 
   URL.revokeObjectURL(url);
 }
