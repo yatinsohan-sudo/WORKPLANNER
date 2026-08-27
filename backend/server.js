@@ -197,6 +197,142 @@ app.post("/api/tasks", async (req, res) => {
 });
 
 // ─────────────────────────────
+// IMPORT MULTIPLE TASKS
+// POST /api/tasks/import
+// ─────────────────────────────
+
+app.post("/api/tasks/import", async (req, res) => {
+  const tasksToImport = req.body;
+
+  // Make sure the request contains an array
+  if (!Array.isArray(tasksToImport)) {
+    return res.status(400).json({
+      error: "Import data must be an array of tasks"
+    });
+  }
+
+  if (tasksToImport.length === 0) {
+    return res.status(400).json({
+      error: "No tasks to import"
+    });
+  }
+
+  const validDays = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+  ];
+
+  const validPriorities = [
+    "low",
+    "medium",
+    "high"
+  ];
+
+  // Validate every task BEFORE inserting anything
+  for (const task of tasksToImport) {
+    if (
+      typeof task.title !== "string" ||
+      !task.title.trim()
+    ) {
+      return res.status(400).json({
+        error: "Every imported task must have a title"
+      });
+    }
+
+    if (task.day && !validDays.includes(task.day)) {
+      return res.status(400).json({
+        error: `Invalid day: ${task.day}`
+      });
+    }
+
+    if (
+      task.priority &&
+      !validPriorities.includes(task.priority)
+    ) {
+      return res.status(400).json({
+        error: `Invalid priority: ${task.priority}`
+      });
+    }
+
+    if (
+      task.completed !== undefined &&
+      typeof task.completed !== "boolean"
+    ) {
+      return res.status(400).json({
+        error: "Completed must be true or false"
+      });
+    }
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const importedTasks = [];
+
+    for (const task of tasksToImport) {
+      const result = await client.query(
+        `
+        INSERT INTO tasks (
+          title,
+          description,
+          day,
+          priority,
+          completed
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING
+          id,
+          title,
+          description AS desc,
+          day,
+          priority,
+          completed,
+          created_at AS "createdAt"
+        `,
+        [
+          task.title.trim(),
+          typeof task.desc === "string"
+            ? task.desc.trim()
+            : "",
+          task.day || "Monday",
+          task.priority || "medium",
+          task.completed ?? false
+        ]
+      );
+
+      importedTasks.push(result.rows[0]);
+    }
+
+    await client.query("COMMIT");
+
+    res.status(201).json({
+      message: "Tasks imported successfully",
+      count: importedTasks.length,
+      tasks: importedTasks
+    });
+
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    console.error("Error importing tasks:", error);
+
+    res.status(500).json({
+      error: "Failed to import tasks"
+    });
+
+  } finally {
+    client.release();
+  }
+});
+
+// ─────────────────────────────
 // UPDATE TASK
 // PATCH /api/tasks/:id
 // ─────────────────────────────

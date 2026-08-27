@@ -722,10 +722,65 @@ Tasks
 // IMPORT TASKS
 // ─────────────────────────────
 
-function importTasks() {
-  alert(
-    "Import will be connected to the backend in the next step."
-  );
+async function importTasks() {
+  const input = document.createElement("input");
+
+  input.type = "file";
+  input.accept = ".json,application/json";
+
+  input.onchange = async (event) => {
+    const file = event.target.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const fileText = await file.text();
+      const importedTasks = JSON.parse(fileText);
+
+      if (!Array.isArray(importedTasks)) {
+        throw new Error("File must contain an array of tasks.");
+      }
+
+      if (importedTasks.length === 0) {
+        alert("The file contains no tasks.");
+        return;
+      }
+
+      const response = await fetch("/api/tasks/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(importedTasks)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Import failed.");
+      }
+
+      // Update the UI with the newly imported database tasks
+      tasks = [...tasks, ...result.tasks];
+
+      render();
+
+      alert(
+        `${result.count} task${result.count === 1 ? "" : "s"} imported successfully!`
+      );
+
+    } catch (error) {
+      console.error("Import error:", error);
+
+      alert(
+        error.message || "Failed to import tasks."
+      );
+    }
+  };
+
+  input.click();
 }
 
 // ─────────────────────────────
