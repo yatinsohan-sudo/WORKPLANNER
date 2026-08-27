@@ -12,16 +12,18 @@ const PORT = Number(process.env.PORT) || 3000;
 // ─────────────────────────────
 
 app.use(express.json());
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok"
+  });
+});
 
 // ─────────────────────────────
 // POSTGRESQL CONNECTION
 // ─────────────────────────────
 
 const pool = new Pool({
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT)
+    connectionString: process.env.DATABASE_URL
 });
 
 // ─────────────────────────────
@@ -410,9 +412,9 @@ async function startServer() {
 
     console.log("Connected to PostgreSQL successfully.");
 
-    app.listen(PORT, () => {
+    app.listen(PORT, "0.0.0.0" ,() => {
       console.log(
-        `WorkPlanner backend running at http://localhost:${PORT}`
+        `WorkPlanner backend running on port ${PORT}`
       );
     });
   } catch (error) {
