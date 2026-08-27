@@ -449,173 +449,378 @@
   </div>
 
   <script>
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    let tasks = JSON.parse(localStorage.getItem('workPlannerTasks') || '[]');
+    const days = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday"
+];
 
-    function saveTasks() {
-      localStorage.setItem('workPlannerTasks', JSON.stringify(tasks));
-      render();
+let tasks = [];
+
+// ─────────────────────────────
+// LOAD TASKS FROM BACKEND
+// ─────────────────────────────
+
+async function loadTasks() {
+  try {
+    const response = await fetch("/api/tasks");
+
+    if (!response.ok) {
+      throw new Error("Failed to load tasks");
     }
 
-    function addTask() {
-      const title = document.getElementById('taskTitle').value.trim();
-      if (!title) {
-        alert('Please enter a task title');
-        return;
-      }
+    tasks = await response.json();
+    render();
+  } catch (error) {
+    console.error("Error loading tasks:", error);
+    alert("Could not connect to the WorkPlanner backend.");
+  }
+}
 
-      tasks.push({
-        id: Date.now(),
-        title: title,
-        desc: document.getElementById('taskDesc').value,
-        day: document.getElementById('taskDay').value,
-        priority: document.getElementById('taskPri').value,
-        completed: false,
-        createdAt: new Date().toISOString()
-      });
+// ─────────────────────────────
+// ADD TASK
+// ─────────────────────────────
 
-      saveTasks();
+async function addTask() {
+  const title = document.getElementById("taskTitle").value.trim();
+
+  if (!title) {
+    alert("Please enter a task title");
+    return;
+  }
+
+  const taskData = {
+    title: title,
+    desc: document.getElementById("taskDesc").value,
+    day: document.getElementById("taskDay").value,
+    priority: document.getElementById("taskPri").value
+  };
+
+  try {
+    const response = await fetch("/api/tasks", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(taskData)
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create task");
+    }
+
+    const newTask = await response.json();
+
+    tasks.push(newTask);
+
+    render();
+    closeModal();
+
+  } catch (error) {
+    console.error("Error creating task:", error);
+    alert("Could not create the task.");
+  }
+}
+
+// ─────────────────────────────
+// TOGGLE TASK
+// ─────────────────────────────
+
+async function toggleTask(id) {
+  const task = tasks.find(
+    task => String(task.id) === String(id)
+  );
+
+  if (!task) {
+    console.error("Task not found:", id);
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        completed: !task.completed
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update task");
+    }
+
+    const updatedTask = await response.json();
+
+    tasks = tasks.map(task =>
+      String(task.id) === String(id)
+        ? updatedTask
+        : task
+    );
+
+    render();
+
+  } catch (error) {
+    console.error("Error updating task:", error);
+    alert("Could not update the task.");
+  }
+}
+
+// ─────────────────────────────
+// DELETE TASK
+// ─────────────────────────────
+
+async function deleteTask(id) {
+  try {
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: "DELETE"
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to delete task");
+    }
+
+    tasks = tasks.filter(
+      task => String(task.id) !== String(id)
+    );
+
+    render();
+
+  } catch (error) {
+    console.error("Error deleting task:", error);
+    alert("Could not delete the task.");
+  }
+}
+
+// ─────────────────────────────
+// OPEN MODAL
+// ─────────────────────────────
+
+function openModal() {
+  document.getElementById("addModal").classList.add("show");
+
+  setTimeout(() => {
+    document.getElementById("taskTitle").focus();
+  }, 100);
+}
+
+// ─────────────────────────────
+// CLOSE MODAL
+// ─────────────────────────────
+
+function closeModal() {
+  document.getElementById("addModal").classList.remove("show");
+
+  document.getElementById("taskTitle").value = "";
+  document.getElementById("taskDesc").value = "";
+}
+
+// ─────────────────────────────
+// EXPORT TASKS
+// ─────────────────────────────
+
+function exportTasks() {
+  const dataStr = JSON.stringify(tasks, null, 2);
+
+  const dataBlob = new Blob(
+    [dataStr],
+    { type: "application/json" }
+  );
+
+  const url = URL.createObjectURL(dataBlob);
+
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download =
+    "work-schedule-" +
+    new Date().toISOString().split("T")[0] +
+    ".json";
+
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────
+// IMPORT TASKS
+// ─────────────────────────────
+
+function importTasks() {
+  alert(
+    "Import will be connected to the backend in the next step."
+  );
+}
+
+// ─────────────────────────────
+// RENDER
+// ─────────────────────────────
+
+function render() {
+  const grid = document.getElementById("daysGrid");
+
+  grid.innerHTML = "";
+
+  const completedCount =
+    tasks.filter(task => task.completed).length;
+
+  const totalCount = tasks.length;
+
+  document.getElementById("completed").textContent =
+    completedCount;
+
+  document.getElementById("total").textContent =
+    totalCount;
+
+  document.getElementById("percent").textContent =
+    totalCount > 0
+      ? Math.round((completedCount / totalCount) * 100) + "%"
+      : "0%";
+
+  document.getElementById("thisweek").textContent =
+    totalCount;
+
+  const priorityColors = {
+    high: "#E24B4A",
+    medium: "#BA7517",
+    low: "#185FA5"
+  };
+
+  days.forEach(day => {
+    const dayTasks = tasks.filter(
+      task => task.day === day
+    );
+
+    const dayCard = document.createElement("div");
+
+    dayCard.className = "day-card";
+
+    let tasksHTML = "";
+
+    if (dayTasks.length === 0) {
+
+      tasksHTML =
+        '<div class="no-tasks">No tasks scheduled</div>';
+
+    } else {
+
+      tasksHTML = dayTasks.map(task => `
+        <div class="task-item task-${task.priority} ${task.completed ? "completed" : ""}">
+
+          <input
+            type="checkbox"
+            class="task-checkbox"
+            ${task.completed ? "checked" : ""}
+            onchange="toggleTask('${task.id}')"
+          >
+
+          <div class="task-content">
+
+            <div class="task-title ${task.completed ? "completed" : ""}">
+              ${escapeHtml(task.title)}
+            </div>
+
+            ${
+              task.desc
+                ? `<div class="task-desc">${escapeHtml(task.desc)}</div>`
+                : ""
+            }
+
+            <div
+              class="task-priority"
+              style="color: ${priorityColors[task.priority]}"
+            >
+              ${
+                task.priority.charAt(0).toUpperCase() +
+                task.priority.slice(1)
+              } priority
+            </div>
+
+          </div>
+
+          <button
+            class="task-delete"
+            onclick="deleteTask(${task.id})"
+          >
+            ×
+          </button>
+
+        </div>
+      `).join("");
+    }
+
+    dayCard.innerHTML = `
+      <div class="day-header">
+        ${day}
+        <span class="day-count">
+          ${dayTasks.length}
+        </span>
+      </div>
+
+      <div class="day-tasks">
+        ${tasksHTML}
+      </div>
+    `;
+
+    grid.appendChild(dayCard);
+  });
+}
+
+// ─────────────────────────────
+// ESCAPE HTML
+// ─────────────────────────────
+
+function escapeHtml(text) {
+  const map = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  };
+
+  return text.replace(
+    /[&<>"']/g,
+    character => map[character]
+  );
+}
+
+// ─────────────────────────────
+// CLOSE MODAL WHEN CLICKING OUTSIDE
+// ─────────────────────────────
+
+document
+  .getElementById("addModal")
+  .addEventListener("click", event => {
+
+    if (event.target.id === "addModal") {
       closeModal();
     }
 
-    function toggleTask(id) {
-      const task = tasks.find(t => t.id === id);
-      if (task) {
-        task.completed = !task.completed;
-        saveTasks();
-      }
-    }
+  });
 
-    function deleteTask(id) {
-      tasks = tasks.filter(t => t.id !== id);
-      saveTasks();
-    }
+// ─────────────────────────────
+// ESC KEY
+// ─────────────────────────────
 
-    function openModal() {
-      document.getElementById('addModal').classList.add('show');
-      setTimeout(() => document.getElementById('taskTitle').focus(), 100);
-    }
+document.addEventListener("keydown", event => {
 
-    function closeModal() {
-      document.getElementById('addModal').classList.remove('show');
-      document.getElementById('taskTitle').value = '';
-      document.getElementById('taskDesc').value = '';
-    }
+  if (event.key === "Escape") {
+    closeModal();
+  }
 
-    function exportTasks() {
-      const dataStr = JSON.stringify(tasks, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'work-schedule-' + new Date().toISOString().split('T')[0] + '.json';
-      link.click();
-      URL.revokeObjectURL(url);
-    }
+});
 
-    function importTasks() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+// ─────────────────────────────
+// START WORKPLANNER
+// ─────────────────────────────
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const imported = JSON.parse(event.target.result);
-            if (Array.isArray(imported)) {
-              tasks = [...tasks, ...imported];
-              saveTasks();
-              alert('Tasks imported successfully!');
-            } else {
-              alert('Invalid file format');
-            }
-          } catch (err) {
-            alert('Failed to import tasks');
-          }
-        };
-        reader.readAsText(file);
-      };
-      input.click();
-    }
-
-    function render() {
-      const grid = document.getElementById('daysGrid');
-      grid.innerHTML = '';
-
-      const completedCount = tasks.filter(t => t.completed).length;
-      const totalCount = tasks.length;
-
-      document.getElementById('completed').textContent = completedCount;
-      document.getElementById('total').textContent = totalCount;
-      document.getElementById('percent').textContent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-      document.getElementById('thisweek').textContent = totalCount;
-
-      const priorityColors = {
-        high: '#E24B4A',
-        medium: '#BA7517',
-        low: '#185FA5'
-      };
-
-      days.forEach(day => {
-        const dayTasks = tasks.filter(t => t.day === day);
-
-        const dayCard = document.createElement('div');
-        dayCard.className = 'day-card';
-
-        let tasksHTML = '';
-        if (dayTasks.length === 0) {
-          tasksHTML = '<div class="no-tasks">No tasks scheduled</div>';
-        } else {
-          tasksHTML = dayTasks.map(task => `
-            <div class="task-item task-${task.priority} ${task.completed ? 'completed' : ''}">
-              <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id})">
-              <div class="task-content">
-                <div class="task-title ${task.completed ? 'completed' : ''}">${escapeHtml(task.title)}</div>
-                ${task.desc ? `<div class="task-desc">${escapeHtml(task.desc)}</div>` : ''}
-                <div class="task-priority" style="color: ${priorityColors[task.priority]}">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} priority</div>
-              </div>
-              <button class="task-delete" onclick="deleteTask(${task.id})">×</button>
-            </div>
-          `).join('');
-        }
-
-        dayCard.innerHTML = `
-          <div class="day-header">
-            ${day}
-            <span class="day-count">${dayTasks.length}</span>
-          </div>
-          <div class="day-tasks">
-            ${tasksHTML}
-          </div>
-        `;
-
-        grid.appendChild(dayCard);
-      });
-    }
-
-    function escapeHtml(text) {
-      const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-      };
-      return text.replace(/[&<>"']/g, m => map[m]);
-    }
-
-    document.getElementById('addModal').addEventListener('click', (e) => {
-      if (e.target.id === 'addModal') closeModal();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeModal();
-    });
-
-    render();
+loadTasks();
   </script>
 </body>
 </html>
